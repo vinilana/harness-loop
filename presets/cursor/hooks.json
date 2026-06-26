@@ -1,0 +1,10 @@
+{
+  "version": 1,
+  "hooks": {
+    "beforeSubmitPrompt": [ { "command": "HOOK_LOOP_SOURCE=cursor .codex/dispatch-hook.sh UserPromptSubmit" } ],
+    "beforeShellExecution": [ { "command": "HOOK_LOOP_SOURCE=cursor .codex/dispatch-hook.sh PreToolUse" } ],
+    "beforeReadFile": [ { "command": "HOOK_LOOP_SOURCE=cursor .codex/dispatch-hook.sh PreToolUse" } ],
+    "afterFileEdit": [ { "command": "HOOK_LOOP_SOURCE=cursor .codex/dispatch-hook.sh PostToolUse" } ],
+    "stop": [ { "command": "HOOK_LOOP_SOURCE=cursor .codex/dispatch-hook.sh Stop" } ]
+  }
+}

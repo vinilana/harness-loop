@@ -1,0 +1,25 @@
+{
+  "hooks": {
+    "SessionStart": [
+      { "matcher": "*", "hooks": [ { "type": "command", "command": "HOOK_LOOP_SOURCE=codex .codex/dispatch-hook.sh SessionStart", "timeout": 15 } ] }
+    ],
+    "UserPromptSubmit": [
+      { "hooks": [ { "type": "command", "command": "HOOK_LOOP_SOURCE=codex .codex/dispatch-hook.sh UserPromptSubmit", "timeout": 15 } ] }
+    ],
+    "PreToolUse": [
+      { "matcher": "*", "hooks": [ { "type": "command", "command": "HOOK_LOOP_SOURCE=codex .codex/dispatch-hook.sh PreToolUse", "timeout": 15 } ] }
+    ],
+    "PostToolUse": [
+      { "matcher": "*", "hooks": [ { "type": "command", "command": "HOOK_LOOP_SOURCE=codex .codex/dispatch-hook.sh PostToolUse", "timeout": 15 } ] }
+    ],
+    "PermissionRequest": [
+      { "matcher": "*", "hooks": [ { "type": "command", "command": "HOOK_LOOP_SOURCE=codex .codex/dispatch-hook.sh PermissionRequest", "timeout": 15 } ] }
+    ],
+    "Stop": [
+      { "hooks": [ { "type": "command", "command": "HOOK_LOOP_SOURCE=codex .codex/dispatch-hook.sh Stop", "timeout": 15 } ] }
+    ],
+    "SessionEnd": [
+      { "hooks": [ { "type": "command", "command": "HOOK_LOOP_SOURCE=codex .codex/dispatch-hook.sh SessionEnd", "timeout": 15 } ] }
+    ]
+  }
+}
