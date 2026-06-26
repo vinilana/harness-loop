@@ -1,0 +1,35 @@
+{
+  "version": 1,
+  "generatedAt": "2026-06-26T00:40:00.000Z",
+  "source": "manual",
+  "stack": {
+    "primaryLanguage": "javascript",
+    "languages": [
+      "javascript"
+    ],
+    "frameworks": ["react", "express", "vite"],
+    "buildTools": [
+      "vite"
+    ],
+    "testFrameworks": [],
+    "packageManager": "pnpm"
+  },
+  "sensors": [
+    {
+      "id": "build",
+      "name": "Build",
+      "description": "Runs production build to ensure frontend compiles.",
+      "severity": "critical",
+      "command": "npm run build",
+      "script": "build"
+    },
+    {
+      "id": "start-dev",
+      "name": "Dev API and UI",
+      "description": "Verifica se o projeto sobe com backend e frontend locais.",
+      "severity": "high",
+      "command": "npm run dev",
+      "script": "dev"
+    }
+  ]
+}

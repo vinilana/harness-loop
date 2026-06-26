@@ -1,0 +1,11 @@
+node_modules
+dist
+*.log
+.DS_Store
+
+# dotcontext runtime state
+.context/plans/
+.context/cache/semantic/
+.context/runtime/
+.context/**/archive/
+
