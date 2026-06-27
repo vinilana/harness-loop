@@ -79,7 +79,31 @@ body {
 .sim { display: inline-flex; gap: 6px; }
 .sim select {
   border: 1px solid var(--line); border-radius: 8px; padding: 6px 8px;
-  font-size: .8rem; background: #fff; color: var(--ink);
+  font-size: .8rem; background: #fff; color: var(--ink); max-width: 220px;
+}
+.sim select:disabled { opacity: .55; cursor: not-allowed; }
+.btn--stop { background: #b5404c; border-color: #9a3540; color: #fff; }
+.btn--stop:hover { background: #a53944; }
+
+/* scenario progress strip */
+.simbar {
+  display: flex; align-items: center; gap: 10px;
+  margin: 6px 0 8px; padding: 6px 12px;
+  background: #fff; border: 1px solid var(--line); border-radius: 8px;
+  font-size: .78rem; color: var(--ink);
+  animation: bannerIn .18s ease-out;
+}
+.simbar__label { font-weight: 700; white-space: nowrap; }
+.simbar__track {
+  flex: 1; height: 7px; border-radius: 999px; background: #e7e9ec; overflow: hidden;
+}
+.simbar__fill {
+  display: block; height: 100%; border-radius: 999px;
+  background: linear-gradient(90deg, var(--blue), var(--orange));
+  transition: width .35s ease;
+}
+.simbar__count {
+  font-variant-numeric: tabular-nums; font-weight: 700; color: var(--muted); white-space: nowrap;
 }
 
 .error {
@@ -100,6 +124,32 @@ body {
 .sr-live { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); }
 
 .btn--on { background: var(--tool-bg); border-color: var(--tool-bd); color: #fff; }
+
+/* --------------------- current-cycle indicator --------------------- */
+.cycle {
+  display: inline-flex; align-items: center; gap: 7px;
+  padding: 4px 11px 4px 9px; border-radius: 999px;
+  font-size: .8rem; font-weight: 700;
+  background: #fff; border: 1.5px solid var(--line); color: var(--muted);
+  animation: cyclePop .3s ease-out;
+}
+.cycle__label {
+  font-size: .62rem; font-weight: 800; letter-spacing: .6px; text-transform: uppercase;
+  opacity: .7;
+}
+.cycle__value { font-weight: 700; }
+.cycle--agentic {
+  border-color: var(--orange); color: #8a4f12;
+  background: #fcefe0; box-shadow: 0 0 0 3px rgba(217,140,67,.18);
+}
+.cycle--each-turn {
+  border-color: var(--blue); color: #245a8c;
+  background: #e7f0fa; box-shadow: 0 0 0 3px rgba(79,143,208,.18);
+}
+.cycle--outside {
+  border-color: #9aa0a6; color: #4a5158; background: #f1f3f5;
+}
+@keyframes cyclePop { from { transform: scale(.92); opacity: .4; } }
 
 /* ----------------------- hooks.json panel -------------------------- */
 .cfg {
@@ -261,6 +311,27 @@ body {
 }
 .box__label--orange { top: 8px; color: var(--orange); }
 .box__label--blue { bottom: 8px; color: var(--blue); }
+
+/* "agente está aqui" marker on the active cycle box */
+.box__here {
+  margin-left: 10px; font-size: .64rem; font-weight: 800; letter-spacing: .5px;
+  padding: 1px 7px; border-radius: 7px; color: #fff;
+  vertical-align: middle;
+}
+.box__label--blue .box__here { background: var(--blue); }
+.box__label--orange .box__here { background: var(--orange); }
+
+/* highlight the box for the cycle the agent is currently in */
+.each-turn.is-current {
+  background: rgba(79,143,208,.07);
+  box-shadow: 0 0 0 3px rgba(79,143,208,.22);
+  border-style: solid;
+}
+.agentic.is-current {
+  background: rgba(217,140,67,.08);
+  box-shadow: 0 0 0 3px rgba(217,140,67,.25);
+  border-style: solid;
+}
 
 /* return-loop rails (right side of each grouping box) */
 .loop-rail { position: absolute; pointer-events: none; }

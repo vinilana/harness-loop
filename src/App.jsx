@@ -11,23 +11,35 @@ const LOG_PER_NODE = 60;
  * `tone` drives the node colour. `hooks` lists the hook event names
  * (as emitted by the dispatcher) that should light this node up.
  * ------------------------------------------------------------------ */
+/* `zone` says which lifecycle cycle the node lives in:
+ *   'outside'   — outside both loops (session-level events)
+ *   'each-turn' — inside the EACH TURN box, outside the agentic loop
+ *   'agentic'   — inside the nested AGENTIC LOOP box
+ * Firing a node sets the "current cycle" indicator accordingly. */
 const NODES = [
-  { id: 'SessionStart', label: 'Session Start', tone: 'green', hooks: ['SessionStart'] },
-  { id: 'UserPromptSubmit', label: 'UserPromptSubmit', tone: 'plain', hooks: ['UserPromptSubmit'] },
-  { id: 'PreToolUse', label: 'PreToolUse', tone: 'loop', hooks: ['PreToolUse'] },
-  { id: 'PermissionRequest', label: 'PermissionRequest', tone: 'loop', hooks: ['PermissionRequest'] },
-  { id: 'ToolExecutes', label: '[tool executes]', tone: 'tool', hooks: ['ToolExecutes', 'ToolExecute'] },
-  { id: 'PostToolUse', label: 'PostToolUse / PostToolUseFailure', tone: 'loop', hooks: ['PostToolUse', 'PostToolUseFailure'] },
-  { id: 'PostToolBatch', label: 'PostToolBatch', tone: 'loop', hooks: ['PostToolBatch'] },
-  { id: 'Subagent', label: 'SubagentStart / SubagentStop', tone: 'loop', hooks: ['SubagentStart', 'SubagentStop'] },
-  { id: 'TaskCreated', label: 'TaskCreated', tone: 'loop', hooks: ['TaskCreated'] },
-  { id: 'TaskCompleted', label: 'TaskCompleted', tone: 'loop', hooks: ['TaskCompleted'] },
-  { id: 'Stop', label: 'Stop / StopFailure', tone: 'red', hooks: ['Stop', 'StopFailure'] },
-  { id: 'TeammateIdle', label: 'TeammateIdle', tone: 'plain', hooks: ['TeammateIdle'] },
-  { id: 'PreCompact', label: 'PreCompact', tone: 'plain', hooks: ['PreCompact'] },
-  { id: 'PostCompact', label: 'PostCompact', tone: 'plain', hooks: ['PostCompact'] },
-  { id: 'SessionEnd', label: 'SessionEnd', tone: 'plain', hooks: ['SessionEnd'] }
+  { id: 'SessionStart', label: 'Session Start', tone: 'green', zone: 'outside', hooks: ['SessionStart'] },
+  { id: 'UserPromptSubmit', label: 'UserPromptSubmit', tone: 'plain', zone: 'each-turn', hooks: ['UserPromptSubmit'] },
+  { id: 'PreToolUse', label: 'PreToolUse', tone: 'loop', zone: 'agentic', hooks: ['PreToolUse'] },
+  { id: 'PermissionRequest', label: 'PermissionRequest', tone: 'loop', zone: 'agentic', hooks: ['PermissionRequest'] },
+  { id: 'ToolExecutes', label: '[tool executes]', tone: 'tool', zone: 'agentic', hooks: ['ToolExecutes', 'ToolExecute'] },
+  { id: 'PostToolUse', label: 'PostToolUse / PostToolUseFailure', tone: 'loop', zone: 'agentic', hooks: ['PostToolUse', 'PostToolUseFailure'] },
+  { id: 'PostToolBatch', label: 'PostToolBatch', tone: 'loop', zone: 'agentic', hooks: ['PostToolBatch'] },
+  { id: 'Subagent', label: 'SubagentStart / SubagentStop', tone: 'loop', zone: 'agentic', hooks: ['SubagentStart', 'SubagentStop'] },
+  { id: 'TaskCreated', label: 'TaskCreated', tone: 'loop', zone: 'agentic', hooks: ['TaskCreated'] },
+  { id: 'TaskCompleted', label: 'TaskCompleted', tone: 'loop', zone: 'agentic', hooks: ['TaskCompleted'] },
+  { id: 'Stop', label: 'Stop / StopFailure', tone: 'red', zone: 'each-turn', hooks: ['Stop', 'StopFailure'] },
+  { id: 'TeammateIdle', label: 'TeammateIdle', tone: 'plain', zone: 'outside', hooks: ['TeammateIdle'] },
+  { id: 'PreCompact', label: 'PreCompact', tone: 'plain', zone: 'outside', hooks: ['PreCompact'] },
+  { id: 'PostCompact', label: 'PostCompact', tone: 'plain', zone: 'outside', hooks: ['PostCompact'] },
+  { id: 'SessionEnd', label: 'SessionEnd', tone: 'plain', zone: 'outside', hooks: ['SessionEnd'] }
 ];
+
+/* Cycle metadata for the "ciclo atual" indicator. */
+const ZONES = {
+  'agentic': { label: 'Agentic Loop', short: 'AGENTIC LOOP', hint: 'dentro do loop de ferramentas' },
+  'each-turn': { label: 'Each Turn', short: 'EACH TURN', hint: 'no turno, fora do loop agêntico' },
+  'outside': { label: 'Fora dos loops', short: 'FORA', hint: 'evento de nível de sessão' }
+};
 
 const RAIL = [
   { id: 'Setup', label: 'Setup', sub: '(Opt-in)', gap: 2, hooks: ['Setup'] },
@@ -64,6 +76,98 @@ function resolveId(eventName) {
   const base = raw.split('.')[0];
   return HOOK_INDEX[base] || null;
 }
+
+/* ------------------------------------------------------------------ *
+ * Scenarios — scripted sequences of hooks that play out with timing,
+ * so the diagram animates like a real agent interaction (not just a
+ * single isolated hook). `delay` is the pause AFTER firing each step.
+ * ------------------------------------------------------------------ */
+const SCENARIOS = [
+  {
+    id: 'turn-no-tools',
+    label: 'Turno simples (sem ferramentas)',
+    desc: 'Usuário pergunta, o agente responde direto e encerra o turno.',
+    steps: [
+      { event: 'UserPromptSubmit', delay: 900 },
+      { event: 'Stop', delay: 800 }
+    ]
+  },
+  {
+    id: 'turn-one-tool',
+    label: 'Turno com 1 ferramenta',
+    desc: 'Um ciclo do loop agêntico: pede permissão, executa e processa o resultado.',
+    steps: [
+      { event: 'UserPromptSubmit', delay: 800 },
+      { event: 'PreToolUse', delay: 550 },
+      { event: 'PermissionRequest', delay: 650 },
+      { event: 'ToolExecutes', delay: 900 },
+      { event: 'PostToolUse', delay: 650 },
+      { event: 'Stop', delay: 800 }
+    ]
+  },
+  {
+    id: 'agentic-multi',
+    label: 'Loop agêntico (várias ferramentas)',
+    desc: 'O agente repete o loop de ferramentas algumas vezes antes de parar.',
+    steps: [
+      { event: 'UserPromptSubmit', delay: 700 },
+      { event: 'PreToolUse', delay: 480 },
+      { event: 'ToolExecutes', delay: 620 },
+      { event: 'PostToolUse', delay: 480 },
+      { event: 'PreToolUse', delay: 480 },
+      { event: 'ToolExecutes', delay: 620 },
+      { event: 'PostToolUse', delay: 480 },
+      { event: 'PreToolUse', delay: 480 },
+      { event: 'ToolExecutes', delay: 620 },
+      { event: 'PostToolUse', delay: 480 },
+      { event: 'PostToolBatch', delay: 650 },
+      { event: 'Stop', delay: 800 }
+    ]
+  },
+  {
+    id: 'subagent',
+    label: 'Subagente + tarefas',
+    desc: 'O agente dispara um subagente que cria e completa uma tarefa.',
+    steps: [
+      { event: 'UserPromptSubmit', delay: 700 },
+      { event: 'PreToolUse', delay: 520 },
+      { event: 'SubagentStart', delay: 640 },
+      { event: 'TaskCreated', delay: 640 },
+      { event: 'TaskCompleted', delay: 950 },
+      { event: 'SubagentStop', delay: 600 },
+      { event: 'PostToolUse', delay: 520 },
+      { event: 'Stop', delay: 800 }
+    ]
+  },
+  {
+    id: 'permission-denied',
+    label: 'Permissão negada',
+    desc: 'Ferramenta bloqueada: PreToolUse, pedido e negação automática.',
+    steps: [
+      { event: 'UserPromptSubmit', delay: 700 },
+      { event: 'PreToolUse', delay: 560 },
+      { event: 'PermissionRequest', delay: 680 },
+      { event: 'PermissionDenied', delay: 760 },
+      { event: 'Stop', delay: 800 }
+    ]
+  },
+  {
+    id: 'full-session',
+    label: 'Sessão completa',
+    desc: 'Do início ao fim: start, um turno com ferramenta, compactação e encerramento.',
+    steps: [
+      { event: 'SessionStart', delay: 850 },
+      { event: 'UserPromptSubmit', delay: 700 },
+      { event: 'PreToolUse', delay: 520 },
+      { event: 'ToolExecutes', delay: 720 },
+      { event: 'PostToolUse', delay: 520 },
+      { event: 'Stop', delay: 850 },
+      { event: 'PreCompact', delay: 700 },
+      { event: 'PostCompact', delay: 700 },
+      { event: 'SessionEnd', delay: 700 }
+    ]
+  }
+];
 
 /* ------------------------------------------------------------------ *
  * Ready-to-use hooks.json per harness. Every config dispatches to the
@@ -266,14 +370,19 @@ export default function App() {
   const [logByNode, setLogByNode] = useState({});
   const [selectedId, setSelectedId] = useState(null);
   const [banner, setBanner] = useState(null);
+  const [activeZone, setActiveZone] = useState(null);
   const [recent, setRecent] = useState([]);
   const [simHook, setSimHook] = useState('SessionStart');
+  const [simScenario, setSimScenario] = useState(SCENARIOS[0].id);
+  const [simProgress, setSimProgress] = useState(null); // { index, total } while a scenario runs
   const [showConfigs, setShowConfigs] = useState(false);
   const [harness, setHarness] = useState('codex');
   const [cfgCopied, setCfgCopied] = useState(false);
 
   const bannerTimer = useRef(null);
   const seq = useRef(0);
+  const simTimer = useRef(null);
+  const simCancel = useRef(false);
 
   const fitRef = useRef(null);
   const boardRef = useRef(null);
@@ -325,10 +434,55 @@ export default function App() {
     setFlashes((f) => ({ ...f, [id]: (f[id] || 0) + 1 }));
     setCounts((c) => ({ ...c, [id]: (c[id] || 0) + 1 }));
     setLogByNode((m) => ({ ...m, [id]: [entry, ...(m[id] || [])].slice(0, LOG_PER_NODE) }));
-    setBanner({ id, label: meta.label, tone: meta.tone, event: eventName, source });
+    // Spine nodes carry a zone; rail (async) hooks don't move the agent's cycle.
+    if (meta.zone) setActiveZone({ zone: meta.zone, at: entry.at, seq: seq.current });
+    setBanner({ id, label: meta.label, tone: meta.tone, event: eventName, source, zone: meta.zone });
     setRecent((r) => [{ key: entry.key, label: meta.label, event: eventName, source }, ...r].slice(0, 6));
     if (bannerTimer.current) clearTimeout(bannerTimer.current);
     bannerTimer.current = setTimeout(() => setBanner(null), 2400);
+  }, []);
+
+  /* Scenario playback — fire a scripted sequence with realistic timing. */
+  const stopScenario = useCallback(() => {
+    simCancel.current = true;
+    if (simTimer.current) clearTimeout(simTimer.current);
+    simTimer.current = null;
+    setSimProgress(null);
+  }, []);
+
+  const runScenario = useCallback((scenarioId) => {
+    const scenario = SCENARIOS.find((s) => s.id === scenarioId);
+    if (!scenario) return;
+    // Restart cleanly if one is already playing.
+    if (simTimer.current) clearTimeout(simTimer.current);
+    simCancel.current = false;
+
+    const steps = scenario.steps;
+    let i = 0;
+    const playNext = () => {
+      if (simCancel.current) return;
+      if (i >= steps.length) {
+        simTimer.current = null;
+        setSimProgress(null);
+        return;
+      }
+      const step = steps[i];
+      setSimProgress({ index: i, total: steps.length, label: scenario.label });
+      activate({
+        event: step.event,
+        source: 'cenário',
+        payload: { simulated: true, scenario: scenario.id, step: i + 1, hook: step.event, ...(step.payload || {}) }
+      });
+      i += 1;
+      simTimer.current = setTimeout(playNext, step.delay ?? 700);
+    };
+    playNext();
+  }, [activate]);
+
+  // Stop any running scenario when the component unmounts.
+  useEffect(() => () => {
+    simCancel.current = true;
+    if (simTimer.current) clearTimeout(simTimer.current);
   }, []);
 
   /* SSE connection */
@@ -392,6 +546,15 @@ export default function App() {
   const railById = useMemo(() => Object.fromEntries(RAIL.map((r) => [r.id, r])), []);
   const toggleSelect = useCallback((id) => setSelectedId((cur) => (cur === id ? null : id)), []);
 
+  // Current cycle the agent is in (derived from the last spine event).
+  const zone = activeZone?.zone || null;
+  const inEachTurn = zone === 'each-turn' || zone === 'agentic';
+  const inAgentic = zone === 'agentic';
+  const zoneMeta = zone ? ZONES[zone] : null;
+
+  const simRunning = simProgress !== null;
+  const currentScenario = SCENARIOS.find((s) => s.id === simScenario) || SCENARIOS[0];
+
   const spineNode = (id) => {
     const node = NODES.find((n) => n.id === id);
     return (
@@ -444,7 +607,10 @@ export default function App() {
           <span className="banner__bolt" aria-hidden="true">⚡</span>
           <span className="banner__main">
             <strong>{banner.event}</strong>
-            <span className="banner__sub">{banner.label} · origem: {banner.source}</span>
+            <span className="banner__sub">
+              {banner.label} · origem: {banner.source}
+              {banner.zone && <> · ciclo: {ZONES[banner.zone].label}</>}
+            </span>
           </span>
         </div>
       )}
@@ -456,6 +622,14 @@ export default function App() {
           <p>Cada hook acende seu bloco no diagrama quando é disparado.</p>
         </div>
         <div className="topbar__controls">
+          <span
+            className={`cycle cycle--${zone || 'none'}`}
+            title={zoneMeta ? zoneMeta.hint : 'Nenhum evento de ciclo ainda'}
+            key={activeZone?.seq || 'none'}
+          >
+            <span className="cycle__label">Ciclo</span>
+            <span className="cycle__value">{zoneMeta ? zoneMeta.label : 'aguardando…'}</span>
+          </span>
           <span className={`pill pill--${status}`}>
             <span className="pill__dot" /> {statusLabel[status]}
           </span>
@@ -472,22 +646,62 @@ export default function App() {
           >
             ⬇ hooks.json
           </button>
+          <label className="sim sim--scenario">
+            <select
+              value={simScenario}
+              onChange={(e) => setSimScenario(e.target.value)}
+              aria-label="Cenário de simulação"
+              title={currentScenario.desc}
+              disabled={simRunning}
+            >
+              {SCENARIOS.map((s) => (
+                <option key={s.id} value={s.id}>{s.label}</option>
+              ))}
+            </select>
+            {simRunning ? (
+              <button type="button" className="btn btn--stop" onClick={stopScenario}>
+                ■ Parar {simProgress.index + 1}/{simProgress.total}
+              </button>
+            ) : (
+              <button type="button" className="btn btn--accent" onClick={() => runScenario(simScenario)}>
+                ▶ Rodar cenário
+              </button>
+            )}
+          </label>
           <label className="sim">
-            <select value={simHook} onChange={(e) => setSimHook(e.target.value)} aria-label="Hook para simular">
+            <select
+              value={simHook}
+              onChange={(e) => setSimHook(e.target.value)}
+              aria-label="Hook avulso para simular"
+              title="Disparar um único hook"
+            >
               {ALL_HOOK_NAMES.map((h) => (
                 <option key={h} value={h}>{h}</option>
               ))}
             </select>
             <button
               type="button"
-              className="btn btn--accent"
+              className="btn"
               onClick={() => activate({ event: simHook, source: 'simulado', payload: { simulated: true, hook: simHook } })}
             >
-              Simular
+              Avulso
             </button>
           </label>
         </div>
       </header>
+
+      {simRunning && (
+        <div className="simbar" role="status">
+          <span className="simbar__label">▶ Cenário: {simProgress.label}</span>
+          <span className="simbar__track">
+            <span
+              className="simbar__fill"
+              style={{ width: `${((simProgress.index + 1) / simProgress.total) * 100}%` }}
+            />
+          </span>
+          <span className="simbar__count">{simProgress.index + 1}/{simProgress.total}</span>
+        </div>
+      )}
 
       {connectionError && <p className="error" role="alert">{connectionError}</p>}
 
@@ -563,15 +777,21 @@ export default function App() {
           {spineNode('SessionStart')}
           <Down />
 
-          <section className="box each-turn">
-            <span className="box__label box__label--blue">EACH TURN</span>
+          <section className={`box each-turn ${inEachTurn ? 'is-current' : ''}`}>
+            <span className="box__label box__label--blue">
+              EACH TURN
+              {inEachTurn && <span className="box__here">◀ agente aqui</span>}
+            </span>
             <div className="loop-rail loop-rail--blue" aria-hidden="true" />
 
             {spineNode('UserPromptSubmit')}
             <Down />
 
-            <section className="box agentic">
-              <span className="box__label box__label--orange">AGENTIC LOOP</span>
+            <section className={`box agentic ${inAgentic ? 'is-current' : ''}`}>
+              <span className="box__label box__label--orange">
+                AGENTIC LOOP
+                {inAgentic && <span className="box__here">◀ agente aqui</span>}
+              </span>
               <div className="loop-rail loop-rail--orange" aria-hidden="true" />
 
               {spineNode('PreToolUse')}
